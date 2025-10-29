@@ -1,0 +1,12 @@
+ubsplash:
+Application ID
+823227
+Access Key
+KZ33-H8XHT6X30sjEoXU6tIrCr46MNAS6VmroL64PSc
+Secret key
+nTVAh86EIzrDfTWqCc4vwvr2eLYZvRGmW4fJjdNo2fc
+
+Google OAuth:
+Client ID
+1084224663957-bvf4habp32hl6t60ofda8bt4moadcrpq.apps.googleusercontent.com
+key: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

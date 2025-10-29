@@ -6,11 +6,12 @@ import session from "express-session";
 import passport from "passport";
 import "./services/passport.js"; // 👈 import BEFORE routes
 
-import authRoutes from "./routes/auth.js"; // 👈 will handle /auth endpoints
+import authRoutes from "./routes/auth.js"; // 👈 handles /auth
+import apiRoutes from "./routes/api.js";   // 👈 handles /api
 
 dotenv.config();
 
-const app = express();
+const app = express(); // ✅ must be declared before using app.use()
 
 // Middleware order is critical ⚡
 app.use(cors({
@@ -38,6 +39,7 @@ app.use(passport.session());
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/api", apiRoutes); // ✅ now correctly placed
 
 // Test route
 app.get("/", (req, res) => {
