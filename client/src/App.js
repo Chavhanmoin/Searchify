@@ -48,8 +48,8 @@ function App() {
     }
   };
 
-  const handleLogin = () => {
-    window.location.href = "http://localhost:5000/auth/google";
+  const handleLogin = (provider) => {
+    window.location.href = `http://localhost:5000/auth/${provider}`;
   };
 
   const handleLogout = () => {
@@ -95,7 +95,7 @@ function App() {
         paddingBottom: "40px",
       }}
     >
-      {/* 🌟 Animated Trending Leaderboard */}
+      {/* 🌟 Trending Searches Banner */}
       {topSearches.length > 0 && (
         <div
           style={{
@@ -147,7 +147,6 @@ function App() {
                   cursor: "pointer",
                   position: "relative",
                   transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                  transformOrigin: "center",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "scale(1.03)";
@@ -160,7 +159,6 @@ function App() {
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                {/* Pulse animation for top 3 */}
                 {isTop3 && (
                   <div
                     style={{
@@ -229,21 +227,53 @@ function App() {
 
       {!user ? (
         <>
-          <p>Login with your Google account to search images</p>
-          <button
-            onClick={handleLogin}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#4285F4",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              fontSize: "16px",
-              cursor: "pointer",
-            }}
-          >
-            Continue with Google
-          </button>
+          <p>Login with one of your accounts to continue</p>
+          <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+            <button
+              onClick={() => handleLogin("google")}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#4285F4",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              Continue with Google
+            </button>
+
+            <button
+              onClick={() => handleLogin("facebook")}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#1877F2",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              Continue with Facebook
+            </button>
+
+            <button
+              onClick={() => handleLogin("github")}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#333",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              Continue with GitHub
+            </button>
+          </div>
         </>
       ) : (
         <>
@@ -276,6 +306,7 @@ function App() {
             </button>
           </div>
 
+          {/* Search + Image + History section remains same */}
           {/* ✅ Search Bar */}
           <form onSubmit={handleSearch} style={{ marginTop: "30px" }}>
             <input

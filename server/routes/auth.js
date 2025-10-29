@@ -1,24 +1,31 @@
-// routes/auth.js
+// /routes/auth.js
 import express from "express";
 import passport from "passport";
 
 const router = express.Router();
 
-// Google login
-router.get("/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-// Google callback
-router.get(
-  "/google/callback",
+// 🟢 Google
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get("/google/callback",
   passport.authenticate("google", { failureRedirect: "/auth/failure" }),
-  (req, res) => {
-    res.redirect("http://localhost:3000"); // ✅ redirect to frontend after success
-  }
+  (req, res) => res.redirect("http://localhost:3000")
 );
 
-// Success route
+// 🔵 Facebook
+router.get("/facebook", passport.authenticate("facebook", { scope: ["email"] }));
+router.get("/facebook/callback",
+  passport.authenticate("facebook", { failureRedirect: "/auth/failure" }),
+  (req, res) => res.redirect("http://localhost:3000")
+);
+
+// ⚫ GitHub
+router.get("/github", passport.authenticate("github", { scope: ["user:email"] }));
+router.get("/github/callback",
+  passport.authenticate("github", { failureRedirect: "/auth/failure" }),
+  (req, res) => res.redirect("http://localhost:3000")
+);
+
+// ✅ Success route
 router.get("/success", (req, res) => {
   if (req.user) {
     res.json({ message: "🎉 Login successful!", user: req.user });
@@ -27,7 +34,7 @@ router.get("/success", (req, res) => {
   }
 });
 
-// Logout route
+// 🚪 Logout
 router.get("/logout", (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
@@ -38,9 +45,6 @@ router.get("/logout", (req, res, next) => {
   });
 });
 
-// Failure route
-router.get("/failure", (req, res) => {
-  res.send("❌ Google Login Failed");
-});
+router.get("/failure", (req, res) => res.send("❌ Login Failed"));
 
 export default router;

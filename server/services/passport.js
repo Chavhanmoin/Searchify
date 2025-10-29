@@ -1,15 +1,12 @@
-// services/passport.js
+// /services/passport.js
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as FacebookStrategy } from "passport-facebook";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import dotenv from "dotenv";
 import User from "../models/User.js";
 
 dotenv.config();
-
-console.log("🔑 Passport ENV:", {
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? "✅ Exists" : "❌ Missing",
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? "✅ Exists" : "❌ Missing",
-});
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -24,6 +21,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
+// ✅ Google OAuth
 passport.use(
   new GoogleStrategy(
     {
@@ -34,7 +32,6 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ providerId: profile.id });
-
         if (!user) {
           user = await User.create({
             providerId: profile.id,
@@ -44,10 +41,67 @@ passport.use(
             profilePhoto: profile.photos?.[0]?.value || "",
           });
         }
-
-        return done(null, user);
+        done(null, user);
       } catch (err) {
-        return done(err, null);
+        done(err, null);
+      }
+    }
+  )
+);
+
+/* ✅ Facebook OAuth
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      callbackURL: "http://localhost:5000/auth/facebook/callback",
+      profileFields: ["id", "displayName", "photos", "email"],
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        let user = await User.findOne({ providerId: profile.id });
+        if (!user) {
+          user = await User.create({
+            providerId: profile.id,
+            provider: "facebook",
+            displayName: profile.displayName,
+            email: profile.emails?.[0]?.value || "no-email",
+            profilePhoto: profile.photos?.[0]?.value || "",
+          });
+        }
+        done(null, user);
+      } catch (err) {
+        done(err, null);
+      }
+    }
+  )
+);
+*/
+
+// ✅ GitHub OAuth
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: "http://localhost:5000/auth/github/callback",
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        let user = await User.findOne({ providerId: profile.id });
+        if (!user) {
+          user = await User.create({
+            providerId: profile.id,
+            provider: "github",
+            displayName: profile.displayName || "No Name",
+            email: profile.emails?.[0]?.value || "no-email",
+            profilePhoto: profile.photos?.[0]?.value || "",
+          });
+        }
+        done(null, user);
+      } catch (err) {
+        done(err, null);
       }
     }
   )
