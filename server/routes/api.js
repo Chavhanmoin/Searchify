@@ -83,7 +83,26 @@ router.get("/history", async (req, res) => {
     total,
   });
 });
+// 🏆 GET /api/top-searches — top 5 frequent terms
+router.get("/top-searches", async (req, res) => {
+  try {
+    const top = await Search.aggregate([
+      { $group: { _id: "$term", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+    ]);
 
+    res.json(
+      top.map((item) => ({
+        term: item._id,
+        count: item.count,
+      }))
+    );
+  } catch (err) {
+    console.error("❌ Error fetching top searches:", err);
+    res.status(500).json({ message: "Error getting top searches" });
+  }
+});
 
 
 

@@ -9,8 +9,8 @@ function App() {
   const [history, setHistory] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [topSearches, setTopSearches] = useState([]);
 
-  // ✅ Check if user is logged in
   useEffect(() => {
     axios
       .get("http://localhost:5000/auth/success", { withCredentials: true })
@@ -21,16 +21,16 @@ function App() {
         }
       })
       .catch(() => setUser(null));
+
+    fetchTopSearches();
   }, []);
 
-  // ✅ Fetch paginated search history
   const fetchHistory = async (pageNum = 1) => {
     try {
       const res = await axios.get(
         `http://localhost:5000/api/history?page=${pageNum}&limit=7`,
         { withCredentials: true }
       );
-
       setHistory(res.data.history);
       setPage(res.data.currentPage);
       setTotalPages(res.data.totalPages);
@@ -39,7 +39,15 @@ function App() {
     }
   };
 
-  // ✅ Google login / logout handlers
+  const fetchTopSearches = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/top-searches");
+      setTopSearches(res.data);
+    } catch (err) {
+      console.error("❌ Error fetching top searches:", err);
+    }
+  };
+
   const handleLogin = () => {
     window.location.href = "http://localhost:5000/auth/google";
   };
@@ -48,33 +56,33 @@ function App() {
     window.location.href = "http://localhost:5000/auth/logout";
   };
 
-  // ✅ Handle search
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!term.trim()) return;
+  const handleSearch = async (e, searchTerm = term) => {
+    e?.preventDefault();
+    if (!searchTerm.trim()) return;
 
     try {
       const res = await axios.post(
         "http://localhost:5000/api/search",
-        { term },
+        { term: searchTerm },
         { withCredentials: true }
       );
-
       setImages(res.data.results || []);
       setSelected([]);
-      fetchHistory(1); // refresh history
+      fetchHistory(1);
+      setTerm(searchTerm);
     } catch (err) {
       console.error(err);
       alert("Please log in to search images.");
     }
   };
 
-  // ✅ Toggle selected image
   const toggleSelect = (url) => {
     setSelected((prev) =>
       prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
     );
   };
+
+  const maxCount = Math.max(...topSearches.map((t) => t.count), 1);
 
   return (
     <div
@@ -87,6 +95,136 @@ function App() {
         paddingBottom: "40px",
       }}
     >
+      {/* 🌟 Animated Trending Leaderboard */}
+      {topSearches.length > 0 && (
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "16px",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+            padding: "20px",
+            maxWidth: "500px",
+            margin: "20px auto",
+            textAlign: "left",
+            overflow: "hidden",
+          }}
+        >
+          <h3
+            style={{
+              color: "#ff5722",
+              fontWeight: "bold",
+              marginBottom: "15px",
+              textAlign: "center",
+              fontSize: "1.4rem",
+            }}
+          >
+            🔥 Trending Searches
+          </h3>
+
+          {topSearches.map((item, index) => {
+            const rankEmojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+            const widthPercent = (item.count / maxCount) * 100;
+            const glowColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
+            const barColor = [
+              "linear-gradient(90deg, #FFD700, #FFA000)",
+              "linear-gradient(90deg, #C0C0C0, #B0BEC5)",
+              "linear-gradient(90deg, #CD7F32, #8D6E63)",
+              "linear-gradient(90deg, #90CAF9, #42A5F5)",
+              "linear-gradient(90deg, #A5D6A7, #66BB6A)",
+            ][index];
+
+            const isTop3 = index < 3;
+
+            return (
+              <div
+                key={index}
+                onClick={() => handleSearch(null, item.term)}
+                style={{
+                  marginBottom: "12px",
+                  background: "#fafafa",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  transformOrigin: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.03)";
+                  e.currentTarget.style.boxShadow = `0 0 15px ${
+                    glowColors[index] || "#ccc"
+                  }`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                {/* Pulse animation for top 3 */}
+                {isTop3 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      background: `radial-gradient(circle at center, ${
+                        glowColors[index]
+                      }22 0%, transparent 70%)`,
+                      animation: "pulse 2s infinite",
+                      zIndex: 0,
+                    }}
+                  ></div>
+                )}
+
+                <div
+                  style={{
+                    width: `${widthPercent}%`,
+                    background: barColor,
+                    height: "100%",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    opacity: 0.25,
+                    transition: "width 0.5s ease-in-out",
+                    zIndex: 0,
+                  }}
+                ></div>
+
+                <div
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "10px 14px",
+                    zIndex: 1,
+                  }}
+                >
+                  <span style={{ fontWeight: "bold", color: "#333" }}>
+                    {rankEmojis[index]} {item.term}
+                  </span>
+                  <span style={{ color: "#555", fontSize: "0.9rem" }}>
+                    {item.count} searches
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <style>
+        {`
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.6; }
+          }
+        `}
+      </style>
+
       <h1 style={{ fontSize: "2rem", color: "#333" }}>🔍 Searchify</h1>
 
       {!user ? (
@@ -109,7 +247,6 @@ function App() {
         </>
       ) : (
         <>
-          {/* ✅ User Info */}
           <div>
             <img
               src={user.profilePhoto}
@@ -274,7 +411,7 @@ function App() {
               </table>
             )}
 
-            {/* Pagination Controls */}
+            {/* Pagination */}
             <div
               style={{
                 marginTop: "15px",
@@ -307,7 +444,8 @@ function App() {
                   padding: "8px 15px",
                   borderRadius: "5px",
                   border: "1px solid #ccc",
-                  backgroundColor: page === totalPages ? "#f2f2f2" : "#007bff",
+                  backgroundColor:
+                    page === totalPages ? "#f2f2f2" : "#007bff",
                   color: page === totalPages ? "#999" : "white",
                   cursor: page === totalPages ? "not-allowed" : "pointer",
                 }}
