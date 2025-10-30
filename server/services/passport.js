@@ -49,7 +49,8 @@ passport.use(
   )
 );
 
-/* ✅ Facebook OAuth
+//✅ Facebook OAuth
+// 
 passport.use(
   new FacebookStrategy(
     {
@@ -77,7 +78,7 @@ passport.use(
     }
   )
 );
-*/
+
 
 // ✅ GitHub OAuth
 passport.use(

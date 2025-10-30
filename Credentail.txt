@@ -1,4 +1,4 @@
-ubsplash:
+unsplash:
 Application ID
 823227
 Access Key
@@ -10,3 +10,9 @@ Google OAuth:
 Client ID
 1084224663957-bvf4habp32hl6t60ofda8bt4moadcrpq.apps.googleusercontent.com
 key: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
+
+github:
+key:6de431e855934e40fc0e8183272b639c55e2d440
+Client ID:
+Ov23liRKrLRZpMWgezyk
+
