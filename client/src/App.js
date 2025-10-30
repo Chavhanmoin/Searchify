@@ -1,16 +1,40 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import "./App.css";
+
+// Import Page Components
+import LandingPage from "./pages/LandingPage";
+import MainPage from "./pages/MainPage";
+import HistoryPage from "./pages/HistoryPage";
+
+// Import UI Components
+import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
+import AppFooter from "./components/AppFooter";
+import LandingFooter from "./components/LandingFooter";
+import FullscreenViewer from "./components/FullscreenViewer";
+import SelectionBar from "./components/SelectionBar";
 
 function App() {
+  // All application state lives here
   const [user, setUser] = useState(null);
   const [term, setTerm] = useState("");
   const [images, setImages] = useState([]);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState([]); // For image selection
   const [history, setHistory] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [topSearches, setTopSearches] = useState([]);
+  const [searchInfo, setSearchInfo] = useState(null); 
+  const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [view, setView] = useState('main'); // 'main' or 'history'
 
+  // --- NEW: State for history selection ---
+  const [selectedHistory, setSelectedHistory] = useState([]);
+
+  // All data fetching and logic lives here
   useEffect(() => {
     axios
       .get("http://localhost:5000/auth/success", { withCredentials: true })
@@ -24,10 +48,9 @@ function App() {
 
     fetchTopSearches();
   }, []);
-    useEffect(() => {
-    const interval = setInterval(() => {
-      fetchTopSearches();
-    }, 10000); // 10 seconds
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchTopSearches(), 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -66,19 +89,44 @@ function App() {
     e?.preventDefault();
     if (!searchTerm.trim()) return;
 
+    setLoading(true); 
+    setSearchInfo(null); 
+    setImages([]); 
+
     try {
       const res = await axios.post(
         "http://localhost:5000/api/search",
-        { term: searchTerm },
+        { term: searchTerm, page: 1 }, 
         { withCredentials: true }
       );
+
       setImages(res.data.results || []);
       setSelected([]);
-      fetchHistory(1);
       setTerm(searchTerm);
+      setPage(1);
+      setSearchInfo({ term: res.data.term, total: res.data.total }); 
+      fetchHistory(1);
     } catch (err) {
       console.error(err);
       alert("Please log in to search images.");
+    } finally {
+      setLoading(false); 
+    }
+  };
+
+  const handleLoadMore = async () => {
+    const nextPage = page + 1;
+    
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/search",
+        { term, page: nextPage }, 
+        { withCredentials: true }
+      );
+      setImages((prev) => [...prev, ...(res.data.results || [])]);
+      setPage(nextPage); 
+    } catch (err) {
+      console.error("❌ Error loading more images:", err);
     }
   };
 
@@ -88,411 +136,135 @@ function App() {
     );
   };
 
+  const navigateTo = (viewName) => {
+    setSelectedHistory([]); // Clear history selection when changing views
+    setView(viewName);
+    setIsSidebarOpen(false);
+  };
+  
+  // --- Handlers for History Deletion ---
+
+  const toggleHistorySelection = (id) => {
+    setSelectedHistory((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllHistory = () => {
+    // If all are already selected, clear selection. Otherwise, select all.
+    if (selectedHistory.length === history.length) {
+      setSelectedHistory([]);
+    } else {
+      setSelectedHistory(history.map(item => item._id));
+    }
+  };
+
+  const handleDeleteHistory = async () => {
+    if (selectedHistory.length === 0) return;
+    
+    const remainingHistory = history.filter(item => !selectedHistory.includes(item._id));
+    setHistory(remainingHistory);
+    const currentPage = page; // Store current page
+    setSelectedHistory([]);
+
+    try {
+      await axios.delete("http://localhost:5000/api/history", {
+        data: { ids: selectedHistory }, 
+        withCredentials: true,
+      });
+      // Refetch the current page to get new items and correct pagination
+      fetchHistory(currentPage); 
+    } catch (err) {
+      console.error("Error deleting history:", err);
+      // If error, refetch
+      fetchHistory(currentPage);
+    }
+  };
+
   const maxCount = Math.max(...topSearches.map((t) => t.count), 1);
+  
+  /* -------------------------
+     🧩 Render UI
+  --------------------------*/
 
+  // Render Landing Page if no user
+  if (!user) {
+    return (
+      <div className="landing-page">
+        <LandingPage onLogin={handleLogin} />
+        <LandingFooter />
+      </div>
+    );
+  }
+
+  // Render Dashboard if user exists
   return (
-    <div
-      style={{
-        textAlign: "center",
-        marginTop: "40px",
-        fontFamily: "sans-serif",
-        backgroundColor: "#f9f9f9",
-        minHeight: "100vh",
-        paddingBottom: "40px",
-      }}
-    >
-      {/* 🌟 Trending Searches Banner */}
-      {topSearches.length > 0 && (
-        <div
-          style={{
-            backgroundColor: "white",
-            borderRadius: "16px",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-            padding: "20px",
-            maxWidth: "500px",
-            margin: "20px auto",
-            textAlign: "left",
-            overflow: "hidden",
-          }}
-        >
-          <h3
-            style={{
-              color: "#ff5722",
-              fontWeight: "bold",
-              marginBottom: "15px",
-              textAlign: "center",
-              fontSize: "1.4rem",
+    <div className="dashboard-wrapper">
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onNavigate={navigateTo} 
+      />
+      
+      <Navbar 
+        user={user} 
+        onLogout={handleLogout} 
+        onToggleSidebar={() => setIsSidebarOpen(true)}
+        onNavigate={navigateTo}
+        setFullscreenImage={setFullscreenImage}
+      />
+      
+      <div className="page-content-wrapper">
+        {view === 'main' && (
+          <MainPage
+            topSearches={topSearches}
+            maxCount={maxCount}
+            term={term}
+            setTerm={setTerm}
+            handleSearch={handleSearch}
+            loading={loading}
+            searchInfo={searchInfo}
+            images={images}
+            selected={selected}
+            toggleSelect={toggleSelect}
+            setFullscreenImage={setFullscreenImage}
+            handleLoadMore={handleLoadMore}
+          />
+        )}
+        
+        {view === 'history' && (
+          <HistoryPage
+            history={history}
+            page={page}
+            totalPages={totalPages}
+            fetchHistory={fetchHistory}
+            handleSearchAndNavigate={(term) => {
+              navigateTo('main');
+              handleSearch(null, term);
             }}
-          >
-            🔥 Trending Searches
-          </h3>
+            selectedHistory={selectedHistory}
+            onToggleSelect={toggleHistorySelection}
+            onSelectAll={handleSelectAllHistory}
+            onDelete={handleDeleteHistory}
+          />
+        )}
+      </div> 
 
-          {topSearches.map((item, index) => {
-            const rankEmojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
-            const widthPercent = (item.count / maxCount) * 100;
-            const glowColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
-            const barColor = [
-              "linear-gradient(90deg, #FFD700, #FFA000)",
-              "linear-gradient(90deg, #C0C0C0, #B0BEC5)",
-              "linear-gradient(90deg, #CD7F32, #8D6E63)",
-              "linear-gradient(90deg, #90CAF9, #42A5F5)",
-              "linear-gradient(90deg, #A5D6A7, #66BB6A)",
-            ][index];
-
-            const isTop3 = index < 3;
-
-            return (
-              <div
-                key={index}
-                onClick={() => handleSearch(null, item.term)}
-                style={{
-                  marginBottom: "12px",
-                  background: "#fafafa",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  position: "relative",
-                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.03)";
-                  e.currentTarget.style.boxShadow = `0 0 15px ${
-                    glowColors[index] || "#ccc"
-                  }`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                {isTop3 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: "100%",
-                      background: `radial-gradient(circle at center, ${
-                        glowColors[index]
-                      }22 0%, transparent 70%)`,
-                      animation: "pulse 2s infinite",
-                      zIndex: 0,
-                    }}
-                  ></div>
-                )}
-
-                <div
-                  style={{
-                    width: `${widthPercent}%`,
-                    background: barColor,
-                    height: "100%",
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    opacity: 0.25,
-                    transition: "width 0.5s ease-in-out",
-                    zIndex: 0,
-                  }}
-                ></div>
-
-                <div
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px 14px",
-                    zIndex: 1,
-                  }}
-                >
-                  <span style={{ fontWeight: "bold", color: "#333" }}>
-                    {rankEmojis[index]} {item.term}
-                  </span>
-                  <span style={{ color: "#555", fontSize: "0.9rem" }}>
-                    {item.count} searches
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {fullscreenImage && (
+        <FullscreenViewer 
+          image={fullscreenImage} 
+          onClose={() => setFullscreenImage(null)} 
+        />
+      )}
+      
+      {selected.length > 0 && (
+        <SelectionBar 
+          count={selected.length} 
+          onClearSelection={() => setSelected([])}
+        />
       )}
 
-      <style>
-        {`
-          @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.6; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.6; }
-          }
-        `}
-      </style>
-
-      <h1 style={{ fontSize: "2rem", color: "#333" }}>🔍 Searchify</h1>
-
-      {!user ? (
-        <>
-          <p>Login with one of your accounts to continue</p>
-          <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
-            <button
-              onClick={() => handleLogin("google")}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#4285F4",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Continue with Google
-            </button>
-
-            <button
-              onClick={() => handleLogin("facebook")}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#1877F2",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Continue with Facebook
-            </button>
-
-            <button
-              onClick={() => handleLogin("github")}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#333",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Continue with GitHub
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div>
-            <img
-              src={user.profilePhoto}
-              alt="Profile"
-              style={{
-                borderRadius: "50%",
-                width: "60px",
-                marginBottom: "10px",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-              }}
-            />
-            <h2>Welcome, {user.displayName}! 👋</h2>
-            <p style={{ color: "#555" }}>{user.email}</p>
-            <button
-              onClick={handleLogout}
-              style={{
-                marginTop: "10px",
-                padding: "8px 15px",
-                backgroundColor: "#db4437",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-            >
-              Logout
-            </button>
-          </div>
-
-          {/* Search + Image + History section remains same */}
-          {/* ✅ Search Bar */}
-          <form onSubmit={handleSearch} style={{ marginTop: "30px" }}>
-            <input
-              type="text"
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              placeholder="Search for images..."
-              style={{
-                padding: "10px",
-                width: "300px",
-                borderRadius: "5px",
-                border: "1px solid #ccc",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                marginLeft: "10px",
-                padding: "10px 15px",
-                backgroundColor: "#4CAF50",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-            >
-              Search
-            </button>
-          </form>
-
-          {/* ✅ Selected Counter */}
-          {selected.length > 0 && (
-            <p style={{ marginTop: "15px", fontWeight: "bold" }}>
-              Selected: {selected.length} image
-              {selected.length > 1 ? "s" : ""}
-            </p>
-          )}
-
-          {/* ✅ Image Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: "15px",
-              padding: "20px",
-              justifyItems: "center",
-              maxWidth: "900px",
-              margin: "0 auto",
-            }}
-          >
-            {images
-              .filter((img) => img?.thumb && img?.full)
-              .map((img) => (
-                <div key={img.id} style={{ position: "relative" }}>
-                  <img
-                    src={img.thumb}
-                    alt={img.description || "Unsplash Image"}
-                    style={{
-                      width: "200px",
-                      height: "150px",
-                      borderRadius: "8px",
-                      objectFit: "cover",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-                      border: selected.includes(img.full)
-                        ? "3px solid #4CAF50"
-                        : "none",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => toggleSelect(img.full)}
-                  />
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(img.full)}
-                    onChange={() => toggleSelect(img.full)}
-                    style={{
-                      position: "absolute",
-                      top: "10px",
-                      right: "10px",
-                      width: "20px",
-                      height: "20px",
-                    }}
-                  />
-                </div>
-              ))}
-          </div>
-
-          {/* ✅ Search History */}
-          <div
-            style={{
-              marginTop: "40px",
-              textAlign: "left",
-              maxWidth: "600px",
-              margin: "40px auto",
-              backgroundColor: "white",
-              padding: "20px",
-              borderRadius: "10px",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-            }}
-          >
-            <h3 style={{ borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
-              🕓 Search History
-            </h3>
-            {history.length === 0 ? (
-              <p>No search history yet.</p>
-            ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  marginTop: "10px",
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: "#f7f7f7" }}>
-                    <th style={{ padding: "8px", textAlign: "left" }}>#</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Term</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((item, index) => (
-                    <tr key={item._id}>
-                      <td style={{ padding: "8px" }}>
-                        {(page - 1) * 7 + index + 1}
-                      </td>
-                      <td style={{ padding: "8px" }}>{item.term}</td>
-                      <td style={{ padding: "8px", color: "#666" }}>
-                        {new Date(item.timestamp).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {/* Pagination */}
-            <div
-              style={{
-                marginTop: "15px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <button
-                onClick={() => fetchHistory(page - 1)}
-                disabled={page === 1}
-                style={{
-                  padding: "8px 15px",
-                  borderRadius: "5px",
-                  border: "1px solid #ccc",
-                  backgroundColor: page === 1 ? "#f2f2f2" : "#007bff",
-                  color: page === 1 ? "#999" : "white",
-                  cursor: page === 1 ? "not-allowed" : "pointer",
-                }}
-              >
-                ⬅ Prev
-              </button>
-              <span>
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => fetchHistory(page + 1)}
-                disabled={page === totalPages}
-                style={{
-                  padding: "8px 15px",
-                  borderRadius: "5px",
-                  border: "1px solid #ccc",
-                  backgroundColor:
-                    page === totalPages ? "#f2f2f2" : "#007bff",
-                  color: page === totalPages ? "#999" : "white",
-                  cursor: page === totalPages ? "not-allowed" : "pointer",
-                }}
-              >
-                Next ➡
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <AppFooter />
     </div>
   );
 }
