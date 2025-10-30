@@ -24,6 +24,12 @@ function App() {
 
     fetchTopSearches();
   }, []);
+    useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTopSearches();
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchHistory = async (pageNum = 1) => {
     try {

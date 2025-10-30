@@ -103,27 +103,6 @@ router.get("/top-searches", async (req, res) => {
     res.status(500).json({ message: "Error getting top searches" });
   }
 });
-useEffect(() => {
-  axios
-    .get("http://localhost:5000/auth/success", { withCredentials: true })
-    .then((res) => {
-      if (res.data.user) {
-        setUser(res.data.user);
-        fetchHistory(1);
-      }
-    })
-    .catch(() => setUser(null));
-
-  fetchTopSearches();
-
-  // 🟢 Auto-refresh top searches every 10 seconds
-  const interval = setInterval(() => {
-    fetchTopSearches();
-  }, 10000);
-
-  // Cleanup when component unmounts
-  return () => clearInterval(interval);
-},);
 
 
 
