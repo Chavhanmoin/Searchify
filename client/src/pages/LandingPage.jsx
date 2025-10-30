@@ -10,7 +10,7 @@ export default function LandingPage({ onLogin }) {
       </header>
 
       <div className="landing-hero">
-        <h1>Get your next idea</h1>
+        <h1>Get your next image</h1>
       </div>
 
       <div className="masonry-background">
@@ -42,7 +42,7 @@ export default function LandingPage({ onLogin }) {
       </div>
 
       <div className="landing-center-box">
-        <h2>Find your inspiration.</h2>
+        <h2>Find your images.</h2>
         <p>Login to start searching</p>
         <div className="auth-buttons">
           <button
